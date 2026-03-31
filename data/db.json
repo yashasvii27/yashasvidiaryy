@@ -1,0 +1,120 @@
+{
+  "users": {
+    "yashasviamin@gmail.com": {
+      "name": "Yashasvi",
+      "email": "yashasviamin@gmail.com",
+      "passwordHash": "3fcbd7b4e47fe6e8f17750d1a4906e958e234b63ef8fea3b1a05d3f234ac061a7c76456da32ae6c317d85b15aefc9c9031a6a027d4ff6ccf2999e22488e01b00",
+      "passwordSalt": "ba84f45dc084cb3aaf25551356d47f085fa5ab48e88bc3a5c0ad5e3ea3c61f9d",
+      "joined": "2026-03-31T05:21:13.355Z",
+      "uid": "164965c6941d7c5c86cd3956f6f5b04d"
+    }
+  },
+  "userData": {
+    "164965c6941d7c5c86cd3956f6f5b04d": {
+      "user": {
+        "name": "Yashasvi",
+        "email": "yashasviamin@gmail.com",
+        "uid": "164965c6941d7c5c86cd3956f6f5b04d",
+        "avatar": "🌸",
+        "joined": "2026-03-31T05:21:13.355Z"
+      },
+      "tasks": [
+        {
+          "id": "dt1",
+          "text": "Drink 8 glasses of water 💧",
+          "category": "health",
+          "fixed": true,
+          "completedDate": "2026-03-31"
+        },
+        {
+          "id": "dt2",
+          "text": "Morning skincare routine 🧴",
+          "category": "personal",
+          "fixed": true,
+          "completedDate": "2026-03-31"
+        },
+        {
+          "id": "dt3",
+          "text": "Move your body 🧘‍♀️",
+          "category": "health",
+          "fixed": true,
+          "completedDate": null
+        },
+        {
+          "id": "dt4",
+          "text": "Read for 20 minutes 📚",
+          "category": "study",
+          "fixed": true,
+          "completedDate": null
+        },
+        {
+          "id": "dt5",
+          "text": "Write in your journal ✍️",
+          "category": "personal",
+          "fixed": true,
+          "completedDate": null
+        }
+      ],
+      "habits": [
+        {
+          "id": "h1",
+          "name": "Wake up early ⏰",
+          "emoji": "⏰"
+        },
+        {
+          "id": "h2",
+          "name": "Drink water 💧",
+          "emoji": "💧"
+        },
+        {
+          "id": "h3",
+          "name": "Exercise 🏋️",
+          "emoji": "🏋️"
+        },
+        {
+          "id": "h4",
+          "name": "Read 📚",
+          "emoji": "📚"
+        },
+        {
+          "id": "h5",
+          "name": "Skincare 🧴",
+          "emoji": "🧴"
+        },
+        {
+          "id": "h6",
+          "name": "No social media 📵",
+          "emoji": "📵"
+        },
+        {
+          "id": "h7",
+          "name": "Journal ✍️",
+          "emoji": "✍️"
+        },
+        {
+          "id": "h8",
+          "name": "Sleep on time 🌙",
+          "emoji": "🌙"
+        }
+      ],
+      "habitLog": {},
+      "weekPlan": {},
+      "dietData": {},
+      "journals": [],
+      "moods": [],
+      "goals": [],
+      "xp": 35,
+      "level": 1,
+      "streak": 1,
+      "longestStreak": 1,
+      "lastActiveDate": "2026-03-31",
+      "pomSessions": 0,
+      "theme": "pink",
+      "currentPage": "settings",
+      "_perfectDayEver": false,
+      "deletedTasks": {},
+      "deletedHabits": {},
+      "_savedAt": 1774934506170
+    }
+  }
+}

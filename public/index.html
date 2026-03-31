@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<title>GlowUp Diary ✨</title>
+<link rel="stylesheet" href="css/style.css"/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎀</text></svg>"/>
+</head>
+<body>
+
+<!-- ===== LOGIN ===== -->
+<div id="login-pg" class="login-pg">
+  <span class="fdeco" style="top:8%;left:4%;font-size:40px;opacity:0.15;animation:bou 3s infinite">🌸</span>
+  <span class="fdeco" style="top:14%;right:7%;font-size:28px;opacity:0.12;animation:bou 4s infinite 1s">✨</span>
+  <span class="fdeco" style="bottom:10%;left:8%;font-size:48px;opacity:0.1;animation:bou 5s infinite 0.5s">🌷</span>
+  <span class="fdeco" style="bottom:18%;right:4%;font-size:34px;opacity:0.12;animation:bou 3.5s infinite 2s">💖</span>
+  <div class="login-card">
+    <div class="login-brand">
+      <div style="font-size:38px;margin-bottom:7px">🎀</div>
+      <div class="login-brand-name">GlowUp Diary</div>
+      <div class="login-brand-sub">Your personal glow-up journey starts here ✨</div>
+    </div>
+    <div class="login-tabs">
+      <div class="login-tab on" id="tab-l" onclick="switchTab('l')">Login</div>
+      <div class="login-tab" id="tab-s" onclick="switchTab('s')">Sign Up</div>
+    </div>
+    <div id="f-l">
+      <div class="fg"><label class="fl">📧 Email</label><input class="fi" type="email" id="l-email" placeholder="you@glow.com" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()"/></div>
+      <div class="fg"><label class="fl">🔒 Password</label><input class="fi" type="password" id="l-pass" placeholder="Your password" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()"/></div>
+      <button class="btn btn-p btn-lg w100" id="btn-login" onclick="login()">Let's Glow 🌸</button>
+      <p id="l-err" style="color:#e57373;font-size:12px;text-align:center;margin-top:8px;display:none"></p>
+    </div>
+    <div id="f-s" style="display:none">
+      <div class="fg"><label class="fl">✨ Your Name</label><input class="fi" id="s-name" placeholder="What's your name, queen?" autocomplete="name" onkeydown="if(event.key==='Enter')document.getElementById('s-email').focus()"/></div>
+      <div class="fg"><label class="fl">📧 Email</label><input class="fi" type="email" id="s-email" placeholder="you@glow.com" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('s-pass').focus()"/></div>
+      <div class="fg"><label class="fl">🔒 Password</label><input class="fi" type="password" id="s-pass" placeholder="Min 6 characters" autocomplete="new-password" onkeydown="if(event.key==='Enter')document.getElementById('s-pass2').focus()"/></div>
+      <div class="fg"><label class="fl">🔒 Confirm Password</label><input class="fi" type="password" id="s-pass2" placeholder="Repeat your password" autocomplete="new-password" onkeydown="if(event.key==='Enter')signup()"/></div>
+      <button class="btn btn-p btn-lg w100" id="btn-signup" onclick="signup()">Start Glowing ✨</button>
+      <p id="s-err" style="color:#e57373;font-size:12px;text-align:center;margin-top:8px;display:none"></p>
+    </div>
+    <p style="text-align:center;font-size:10px;color:var(--tx3);margin-top:16px">☁️ Your data syncs across all your devices</p>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="app" class="app" style="display:none">
+<button class="mob-toggle" onclick="toggleSidebar()">☰</button>
+<div id="sb-ov" class="sb-ov" onclick="closeSidebar()" style="display:none"></div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-brand"><span style="font-size:22px">🎀</span><span class="sb-brand-name">GlowUp Diary</span></div>
+  <div class="sb-user" onclick="go('settings')">
+    <div class="sb-av" id="sb-av">🌸</div>
+    <div style="flex:1;min-width:0"><div class="sb-name" id="sb-name">Loading...</div><div class="sb-lvl" id="sb-lvl">Seedling 🌱</div></div>
+    <span style="font-size:11px;color:var(--tx3)">⚙️</span>
+  </div>
+  <div class="nav-sec">Main</div>
+  <div class="nav-item active" data-pg="dashboard" onclick="go('dashboard')"><span class="nav-icon">🏠</span>Dashboard</div>
+  <div class="nav-item" data-pg="tasks" onclick="go('tasks')"><span class="nav-icon">✅</span>Daily Tasks</div>
+  <div class="nav-item" data-pg="habit" onclick="go('habit')"><span class="nav-icon">📅</span>Habit Tracker</div>
+  <div class="nav-item" data-pg="weekly" onclick="go('weekly')"><span class="nav-icon">🗓️</span>Weekly Planner</div>
+  <div class="nav-item" data-pg="focus" onclick="go('focus')"><span class="nav-icon">⏳</span>Focus Mode</div>
+  <div class="nav-sec">Growth</div>
+  <div class="nav-item" data-pg="streak" onclick="go('streak')"><span class="nav-icon">🔥</span>Glow Streak</div>
+  <div class="nav-sec">Wellbeing</div>
+  <div class="nav-item" data-pg="diet" onclick="go('diet')"><span class="nav-icon">🥗</span>Diet Tracker</div>
+  <div class="nav-item" data-pg="mood" onclick="go('mood')"><span class="nav-icon">💌</span>Mood Tracker</div>
+  <div class="nav-item" data-pg="journal" onclick="go('journal')"><span class="nav-icon">📖</span>Journal</div>
+  <div class="nav-item" data-pg="goals" onclick="go('goals')"><span class="nav-icon">🌷</span>Vision Board</div>
+  <div class="nav-sec">AI ✨</div>
+  <div class="nav-item" onclick="window.location.href='pages/ai-wellness.html'" style="background:var(--g2);border:1px solid var(--cb)"><span class="nav-icon">🌸</span>AI Wellness Hub</div>
+  <div class="nav-sec">More</div>
+  <div class="nav-item" data-pg="settings" onclick="go('settings')"><span class="nav-icon">⚙️</span>Settings</div>
+  <div class="nav-item" onclick="logout()"><span class="nav-icon">👋</span>Logout</div>
+  <div class="sb-foot">
+    <div style="padding:5px 9px 3px;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--tx3);font-weight:700">Theme</div>
+    <div class="th-row">
+      <div class="th-dot th-pink on" data-th="pink" onclick="applyTheme('pink')" title="Pink"></div>
+      <div class="th-dot th-lav" data-th="lavender" onclick="applyTheme('lavender')" title="Lavender"></div>
+      <div class="th-dot th-beige" data-th="beige" onclick="applyTheme('beige')" title="Beige"></div>
+      <div class="th-dot th-dark" data-th="dark" onclick="applyTheme('dark')" title="Dark"></div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- DASHBOARD -->
+<div class="page on" id="pg-dashboard">
+  <div class="hero">
+    <div class="hero-greet" id="d-greet">Good Morning! ☀️</div>
+    <div class="hero-sub">Ready to glow today? ✨</div>
+    <div class="hero-date" id="d-date"></div>
+  </div>
+  <div class="g4" style="margin-bottom:18px;grid-template-columns:repeat(3,1fr)">
+    <div class="stat"><div class="si">🔥</div><div class="sv" id="d-streak">0</div><div class="sl">Day Streak</div></div>
+    <div class="stat"><div class="si">✅</div><div class="sv" id="d-pct">0%</div><div class="sl">Today's Progress</div></div>
+    <div class="stat"><div class="si">⭐</div><div class="sv" id="d-xp">0</div><div class="sl">Total XP</div></div>
+  </div>
+  <!-- Quotes Carousel -->
+  <div class="qbox" id="d-quote-carousel" style="margin-bottom:18px;position:relative;overflow:hidden;min-height:90px;display:flex;flex-direction:column;justify-content:center;align-items:center;cursor:pointer" onclick="quoteNext()">
+    <div id="d-quote-inner" style="text-align:center;transition:opacity 0.4s ease">
+      <div class="qtxt" id="d-qtxt" style="margin-bottom:6px">She believed she could, so she did.</div>
+      <div class="qauth" id="d-qauth">— R.S. Grey</div>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:12px;align-items:center">
+      <button onclick="event.stopPropagation();quotePrev()" style="background:rgba(255,255,255,0.5);border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center">‹</button>
+      <div id="d-quote-dots" style="display:flex;gap:4px"></div>
+      <button onclick="event.stopPropagation();quoteNext()" style="background:rgba(255,255,255,0.5);border:none;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center">›</button>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:18px">
+    <div class="ctitle">✨ Today's Glow</div>
+    <div id="d-ptxt" style="font-size:12px;color:var(--tx2);margin-bottom:10px">0/0 tasks</div>
+    <div class="pw mb4"><div class="pf" id="d-pfill" style="width:0%"></div></div>
+    <button class="btn btn-p btn-sm" onclick="go('tasks')">View All Tasks →</button>
+  </div>
+  <div class="card">
+    <div class="ctitle" style="display:flex;justify-content:space-between"><span>⚡ Today's Tasks</span><button class="btn btn-g btn-sm" onclick="go('tasks')">View All</button></div>
+    <div id="d-tasks"></div>
+  </div>
+</div>
+
+<!-- DAILY TASKS -->
+<div class="page" id="pg-tasks">
+  <div class="ph">
+    <div><div class="ph-title">Daily Tasks ✅</div><div class="ph-sub">Check off your glow goals for today</div></div>
+    <div class="ph-r"><button class="btn btn-p" onclick="openModal('m-add-task')">+ Add Task</button></div>
+  </div>
+  <div class="card mb4" style="padding:10px 12px">
+    <div id="task-month-tabs" style="display:flex;flex-wrap:wrap;gap:4px;overflow-x:auto;padding-bottom:2px"></div>
+  </div>
+  <div class="card mb4">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <span style="font-weight:700;font-size:14px">Today's Progress</span>
+      <span id="t-pct" style="font-family:var(--fd);font-size:22px;font-weight:700;color:var(--p1)">0%</span>
+    </div>
+    <div class="pw mb4"><div class="pf" id="t-pfill" style="width:0%"></div></div>
+    <span id="t-cnt" style="font-size:11px;color:var(--tx2)">0/0 completed</span>
+  </div>
+  <div class="card"><div id="t-list"></div></div>
+</div>
+
+<!-- HABIT TRACKER -->
+<div class="page" id="pg-habit">
+  <div class="ph">
+    <div><div class="ph-title">Habit Tracker 📅</div><div class="ph-sub">Monthly grid — tick every day ✨</div></div>
+    <div class="ph-r">
+      <button class="btn btn-g" onclick="openModal('m-add-habit')">+ Add Habit</button>
+      <button class="btn btn-d btn-sm" onclick="openModal('m-del-habit')">Manage</button>
+    </div>
+  </div>
+  <div id="habit-wrap"></div>
+</div>
+
+<!-- WEEKLY PLANNER -->
+<div class="page" id="pg-weekly">
+  <div class="ph">
+    <div><div class="ph-title">Weekly Planner 🗓️</div><div class="ph-sub" id="wk-label">This Week</div></div>
+  </div>
+  <!-- Month tabs for 2026 -->
+  <div id="wk-month-tabs" style="display:flex;gap:6px;overflow-x:auto;padding:0 0 10px 0;margin-bottom:8px;scrollbar-width:none"></div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+    <button class="btn btn-g" onclick="weekNav(-1)">← Prev Week</button>
+    <span id="wk-badge" style="font-size:12px;font-weight:700;padding:5px 14px;background:var(--pl);color:var(--p3);border-radius:20px">📅 This Week</span>
+    <button class="btn btn-g" onclick="weekNav(1)">Next Week →</button>
+    <button class="btn btn-p btn-sm" id="wk-today-btn" onclick="weekGoToday()" style="display:none">↩ Back to Today</button>
+  </div>
+  <div class="card mb4">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <span style="font-weight:700;font-size:14px">Weekly Progress</span>
+      <span id="wk-pct" style="font-family:var(--fd);font-size:22px;font-weight:700;color:var(--p1)">0%</span>
+    </div>
+    <div class="pw mb4"><div class="pf" id="wk-pfill" style="width:0%"></div></div>
+    <span id="wk-stats" style="font-size:12px;color:var(--tx2)">0/0 tasks this week</span>
+  </div>
+  <div id="wk-grid" class="wk-grid"></div>
+</div>
+
+<!-- FOCUS MODE -->
+<div class="page" id="pg-focus">
+  <div class="ph"><div><div class="ph-title">Focus Mode ⏳</div><div class="ph-sub">Deep work, deep glow 💪</div></div></div>
+  <div class="card tc mb4">
+    <div id="pom-mode" style="font-size:12px;font-weight:700;color:var(--tx2);margin-bottom:18px;letter-spacing:2px;text-transform:uppercase">🎯 Focus Time</div>
+    <div class="tring">
+      <svg viewBox="0 0 230 230" width="230" height="230">
+        <defs><linearGradient id="tg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:var(--p1)"/><stop offset="100%" style="stop-color:var(--s1)"/></linearGradient></defs>
+        <circle class="tr-bg" cx="115" cy="115" r="104"/>
+        <circle class="tr-fill" id="t-ring-path" cx="115" cy="115" r="104"/>
+      </svg>
+      <div class="tnum" id="t-text">25:00</div>
+    </div>
+    <div class="flex g3x" style="justify-content:center;margin-bottom:20px;flex-wrap:wrap">
+      <button class="btn btn-p btn-lg" id="pom-start" onclick="startPom()">▶ Start</button>
+      <button class="btn btn-g btn-lg" id="pom-pause" onclick="pausePom()" disabled>⏸ Pause</button>
+      <button class="btn btn-g btn-lg" onclick="resetPom()">↺ Reset</button>
+    </div>
+    <div class="flex g2x" style="justify-content:center;flex-wrap:wrap">
+      <button class="btn btn-g btn-sm" onclick="setPomMode(25)">🎯 25 min</button>
+      <button class="btn btn-g btn-sm" onclick="setPomMode(45)">💪 45 min</button>
+      <button class="btn btn-g btn-sm" onclick="setPomMode(5)">☕ 5 min break</button>
+      <button class="btn btn-g btn-sm" onclick="setPomMode(15)">🌿 15 min break</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ctitle">📊 Focus Stats</div>
+    <div class="flex g3x ia">
+      <div class="tc"><div style="font-family:var(--fd);font-size:46px;font-weight:700;color:var(--p1)" id="pom-cnt">0</div><div style="font-size:12px;color:var(--tx2)">Sessions Done</div></div>
+      <div><p style="font-size:13px;color:var(--tx2);line-height:1.8">🎯 Each session = <strong>+25 XP</strong><br>☕ Take a 5-min break after<br>💪 After 4 sessions, long break</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- STREAK -->
+<div class="page" id="pg-streak">
+  <div class="ph">
+    <div><div class="ph-title">Glow Streak 🔥</div><div class="ph-sub">Consistency is your superpower</div></div>
+    <div class="ph-r"><button class="btn btn-g" onclick="softReset()">💖 Soft Reset</button></div>
+  </div>
+  <div class="g2 mb4">
+    <div class="card tc">
+      <div class="flame">🔥</div>
+      <div class="snum" id="s-num">0</div>
+      <div style="font-size:11px;color:var(--tx2);margin-top:4px;font-weight:600">Day Streak</div>
+    </div>
+    <div class="card">
+      <div class="ctitle">📊 Stats</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span class="tm">🏆 Longest</span>
+        <span style="font-family:var(--fd);font-size:22px;font-weight:700;color:var(--str)" id="s-longest">0</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span class="tm">⭐ Daily Bonus</span>
+        <span style="font-family:var(--fd);font-size:18px;font-weight:700;color:var(--p1)" id="s-bonus">+0 XP</span>
+      </div>
+      <hr class="div"/>
+      <p style="font-size:12px;color:var(--tx2);line-height:1.7">Complete at least one task or habit daily to keep your streak alive! 🔥</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ctitle">📅 Last 7 Days</div>
+    <div id="s-history" style="display:flex;gap:10px;justify-content:space-around;padding:6px 0"></div>
+  </div>
+  <div class="card mt4" style="background:var(--g2);border:none">
+    <div class="ctitle">💡 Tips</div>
+    <div style="display:grid;gap:8px">
+      <p style="font-size:13px">🌙 Set a nightly reminder before bed</p>
+      <p style="font-size:13px">☀️ Complete your morning task first for momentum</p>
+      <p style="font-size:13px">💖 Use Soft Reset when life happens — zero guilt</p>
+    </div>
+  </div>
+</div>
+
+<!-- DIET TRACKER -->
+<div class="page" id="pg-diet">
+  <div class="ph">
+    <div><div class="ph-title">Diet Tracker 🥗</div><div class="ph-sub" id="diet-label">Today</div></div>
+    <div class="ph-r">
+      <button class="btn btn-g btn-sm" onclick="dietNav(-1)">← Prev</button>
+      <button class="btn btn-p btn-sm" id="diet-today-btn" onclick="dietGoToday()" style="display:none">↩ Today</button>
+      <button class="btn btn-g btn-sm" onclick="dietNav(1)">Next →</button>
+    </div>
+  </div>
+  <!-- Month tabs strip -->
+  <div id="diet-month-tabs" style="display:flex;gap:6px;overflow-x:auto;padding:0 0 10px 0;margin-bottom:4px;scrollbar-width:none"></div>
+  <div class="card mb4">
+    <div class="ctitle" id="diet-month-title">📅 Month</div>
+    <div id="diet-cal-strip" style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px"></div>
+    <div style="display:flex;gap:14px;font-size:10px;color:var(--tx2);align-items:center;flex-wrap:wrap">
+      <span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:var(--pl);vertical-align:middle;margin-right:3px"></span>No plan</span>
+      <span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#fde68a;vertical-align:middle;margin-right:3px"></span>&lt;50%</span>
+      <span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#6ee7b7;vertical-align:middle;margin-right:3px"></span>50–79%</span>
+      <span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:rgba(244,114,182,0.5);vertical-align:middle;margin-right:3px"></span>80–99%</span>
+      <span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:#10b981;vertical-align:middle;margin-right:3px"></span>100% 🎉</span>
+    </div>
+  </div>
+  <div class="diet-day-hero" id="diet-day-hero">
+    <div>
+      <div id="diet-day-name" class="diet-day-name">Today</div>
+      <div id="diet-day-full" class="diet-day-full">Loading...</div>
+      <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+        <div class="diet-pill"><span id="diet-planned-cnt" style="font-family:var(--fd);font-size:22px;font-weight:700;display:block">0</span><span style="font-size:10px;opacity:0.8">planned</span></div>
+        <div class="diet-pill diet-pill-ok"><span id="diet-eaten-cnt" style="font-family:var(--fd);font-size:22px;font-weight:700;display:block">0</span><span style="font-size:10px;opacity:0.8">eaten</span></div>
+        <div class="diet-pill diet-pill-miss"><span id="diet-missed-cnt" style="font-family:var(--fd);font-size:22px;font-weight:700;display:block">0</span><span style="font-size:10px;opacity:0.8">missed</span></div>
+      </div>
+    </div>
+    <div class="diet-ring-wrap">
+      <svg viewBox="0 0 80 80" width="110" height="110" style="transform:rotate(-90deg)">
+        <circle cx="40" cy="40" r="33" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="7"/>
+        <circle id="diet-ring" cx="40" cy="40" r="33" fill="none" stroke="white" stroke-width="7" stroke-linecap="round" stroke-dasharray="207" stroke-dashoffset="207" style="transition:stroke-dashoffset 0.9s cubic-bezier(0.4,0,0.2,1)"/>
+      </svg>
+      <div class="diet-ring-inner">
+        <span id="diet-ring-pct" style="font-family:var(--fd);font-size:20px;font-weight:700;color:#fff;line-height:1">0%</span>
+        <span style="font-size:9px;color:rgba(255,255,255,0.75);font-weight:600">adherence</span>
+      </div>
+    </div>
+  </div>
+  <div class="diet-grid mb4">
+    <div class="card">
+      <div class="ctitle" style="justify-content:space-between;align-items:center">
+        <span>📋 Meal Plan</span>
+        <button class="btn btn-p btn-sm" onclick="openModal('m-add-plan-meal')">+ Add</button>
+      </div>
+      <p style="font-size:11px;color:var(--tx3);margin-bottom:12px">Plan your meals → tap <strong>○ Ate?</strong> when done</p>
+      <div id="diet-plan-list"></div>
+    </div>
+    <div class="card">
+      <div class="ctitle" style="justify-content:space-between;align-items:center">
+        <span>✅ What I Ate</span>
+        <button class="btn btn-p btn-sm" onclick="openModal('m-add-eaten-meal')">+ Log</button>
+      </div>
+      <p style="font-size:11px;color:var(--tx3);margin-bottom:12px">Log extra or unplanned food here</p>
+      <div id="diet-eaten-list"></div>
+    </div>
+  </div>
+  <div class="card mb4">
+    <div class="ctitle">📊 Plan vs Actual</div>
+    <div id="diet-match-table"></div>
+  </div>
+  <div class="card">
+    <div class="ctitle">📝 Day Notes</div>
+    <textarea class="fta" id="diet-notes" placeholder="How did eating go today? Cravings? Energy levels? 💭" style="min-height:75px" oninput="saveDietNote()"></textarea>
+  </div>
+</div>
+
+<!-- MOOD TRACKER -->
+<div class="page" id="pg-mood">
+  <div class="ph"><div><div class="ph-title">Mood Tracker 💌</div><div class="ph-sub">How are you feeling today, gorgeous?</div></div></div>
+  <div class="g2 mb4">
+    <div class="card">
+      <div class="ctitle">💖 Log Today's Mood</div>
+      <div class="flex fw" style="gap:8px;margin-bottom:14px">
+        <div class="mdbtn" onclick="pickMood('😊','Happy')"><span style="font-size:26px">😊</span>Happy</div>
+        <div class="mdbtn" onclick="pickMood('😍','Loving')"><span style="font-size:26px">😍</span>Loving</div>
+        <div class="mdbtn" onclick="pickMood('😌','Peaceful')"><span style="font-size:26px">😌</span>Peaceful</div>
+        <div class="mdbtn" onclick="pickMood('🥰','Grateful')"><span style="font-size:26px">🥰</span>Grateful</div>
+        <div class="mdbtn" onclick="pickMood('😐','Neutral')"><span style="font-size:26px">😐</span>Neutral</div>
+        <div class="mdbtn" onclick="pickMood('😔','Sad')"><span style="font-size:26px">😔</span>Sad</div>
+        <div class="mdbtn" onclick="pickMood('😤','Stressed')"><span style="font-size:26px">😤</span>Stressed</div>
+        <div class="mdbtn" onclick="pickMood('🤩','Excited')"><span style="font-size:26px">🤩</span>Excited</div>
+        <div class="mdbtn" onclick="pickMood('💪','Motivated')"><span style="font-size:26px">💪</span>Motivated</div>
+        <div class="mdbtn" onclick="pickMood('😴','Tired')"><span style="font-size:26px">😴</span>Tired</div>
+      </div>
+      <div id="m-note-sec" style="display:none">
+        <div class="flex ia g2x mb4"><span id="sel-em" style="font-size:22px">😊</span><span id="sel-lbl" style="font-weight:700;font-size:13px">Happy</span></div>
+        <textarea class="fta" id="m-note" placeholder="What's on your mind? 💭" style="min-height:75px"></textarea>
+        <button class="btn btn-p mt3" onclick="saveMood()">Save Entry 💌</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ctitle">📈 Mood This Week</div>
+      <div class="mchart" id="m-chart"></div>
+      <div style="font-size:10px;color:var(--tx3);margin-top:8px;text-align:center">Higher = happier ✨</div>
+    </div>
+  </div>
+  <div class="card"><div class="ctitle">📖 Mood History</div><div id="m-history"></div></div>
+</div>
+
+<!-- JOURNAL -->
+<div class="page" id="pg-journal">
+  <div class="ph">
+    <div><div class="ph-title">Journal 📖</div><div class="ph-sub">Your thoughts, your story ✍️</div></div>
+    <div class="ph-r">
+      <button class="btn btn-g btn-sm" onclick="exportJournal()">📤 Export</button>
+      <button class="btn btn-p" onclick="openModal('m-new-journal')">+ New Entry</button>
+    </div>
+  </div>
+  <div class="search-bar"><span>🔍</span><input id="j-search" placeholder="Search entries..." oninput="renderJournal()"/></div>
+  <div id="j-list"></div>
+</div>
+
+<!-- VISION BOARD -->
+<div class="page" id="pg-goals">
+  <div class="ph">
+    <div><div class="ph-title">Vision Board 🌷</div><div class="ph-sub">Dream it. Believe it. Achieve it ✨</div></div>
+    <div class="ph-r"><button class="btn btn-p" onclick="openModal('m-add-goal')">+ Add Goal</button></div>
+  </div>
+  <div class="vboard" id="g-board"></div>
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="pg-settings">
+  <div class="ph"><div><div class="ph-title">Settings ⚙️</div><div class="ph-sub">Customize your glow experience</div></div></div>
+  <div class="g2">
+    <div class="card">
+      <div class="ctitle">👤 Profile</div>
+      <div class="fg"><label class="fl">Name</label><input class="fi" id="st-name"/></div>
+      <div class="fg"><label class="fl">Email</label><input class="fi" id="st-email" readonly style="opacity:0.6"/></div>
+      <button class="btn btn-p" onclick="saveSettings()">Save ✨</button>
+    </div>
+    <div class="card">
+      <div class="ctitle">🌸 Avatar</div>
+      <div id="st-avs" style="display:flex;flex-wrap:wrap;gap:7px"></div>
+    </div>
+    <div class="card">
+      <div class="ctitle">🎨 Theme</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+        <div onclick="applyTheme('pink')" style="padding:14px;border-radius:var(--rs);border:1.5px solid var(--cb);cursor:pointer;text-align:center;background:linear-gradient(135deg,#fce7f3,#ede9fe);font-weight:700;font-size:13px">🎀 Pink</div>
+        <div onclick="applyTheme('lavender')" style="padding:14px;border-radius:var(--rs);border:1.5px solid var(--cb);cursor:pointer;text-align:center;background:linear-gradient(135deg,#ede9fe,#dbeafe);font-weight:700;font-size:13px">💜 Lavender</div>
+        <div onclick="applyTheme('beige')" style="padding:14px;border-radius:var(--rs);border:1.5px solid var(--cb);cursor:pointer;text-align:center;background:linear-gradient(135deg,#fdf0e6,#fdf8f3);font-weight:700;font-size:13px">🤍 Beige</div>
+        <div onclick="applyTheme('dark')" style="padding:14px;border-radius:var(--rs);border:1.5px solid var(--cb);cursor:pointer;text-align:center;background:linear-gradient(135deg,#1a0820,#2d1040);color:#fae8f5;font-weight:700;font-size:13px">🌙 Dark</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ctitle">💾 Data</div>
+      <p style="font-size:12px;color:var(--tx2);margin-bottom:14px">All data saved in your browser. Export regularly as backup.</p>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-g" onclick="exportData()">📤 Export Backup JSON</button>
+        <button class="btn btn-d" onclick="clearData()">🗑️ Clear All Data</button>
+      </div>
+    </div>
+  </div>
+  <div class="card mt4 tc">
+    <div style="font-size:38px;margin-bottom:10px">🎀</div>
+    <div style="font-family:var(--fb);font-size:26px;background:var(--g1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px">GlowUp Diary</div>
+    <p style="font-size:12px;color:var(--tx2)">Your personal glow-up companion ✨</p>
+    <p style="font-size:10px;color:var(--tx3);margin-top:5px">Made with 💖 for your journey</p>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- ===== MODALS ===== -->
+
+<!-- Add Task -->
+<div class="overlay" id="m-add-task"><div class="modal">
+  <div class="mh"><div class="mt">✅ Add Task</div><button class="mclose" onclick="closeModal('m-add-task')">×</button></div>
+  <div class="fg"><label class="fl">Task Name</label><input class="fi" id="at-txt" placeholder="e.g. Study for 1 hour 📚"/></div>
+  <div class="fg"><label class="fl">Category</label><select class="fsel" id="at-cat" onchange="document.getElementById('at-cat-custom').style.display=this.value==='__custom__'?'block':'none';if(this.value!=='__custom__')document.getElementById('at-cat-custom').value=''">
+    <option value="personal">💖 Personal</option>
+    <option value="study">📚 Study</option>
+    <option value="health">🧘‍♀️ Health</option>
+    <option value="__custom__">✏️ Create new category...</option>
+  </select>
+  <input class="fi" id="at-cat-custom" placeholder="Enter category name..." style="margin-top:8px;display:none"/></div>
+  <button class="btn btn-p w100" onclick="(function(){ const txt=document.getElementById('at-txt').value; const cat=document.getElementById('at-cat').value; addTask(txt,cat); closeModal('m-add-task'); document.getElementById('at-txt').value=''; document.getElementById('at-cat').value='personal'; document.getElementById('at-cat-custom').style.display='none'; document.getElementById('at-cat-custom').value=''; })()">Add Task ✨</button>
+</div></div>
+
+<!-- Edit Task -->
+<div class="overlay" id="m-edit-task"><div class="modal">
+  <div class="mh"><div class="mt">✏️ Edit Task</div><button class="mclose" onclick="closeModal('m-edit-task')">×</button></div>
+  <div class="fg"><label class="fl">Task Name</label><input class="fi" id="et-txt"/></div>
+  <div class="fg"><label class="fl">Category</label>
+    <select class="fsel" id="et-cat" onchange="document.getElementById('et-cat-custom').style.display=this.value==='__custom__'?'block':'none';if(this.value!=='__custom__')document.getElementById('et-cat-custom').value=''">
+      <option value="personal">💖 Personal</option><option value="study">📚 Study</option><option value="health">🧘‍♀️ Health</option>
+      <option value="__custom__">✏️ Create new category...</option>
+    </select>
+    <input class="fi" id="et-cat-custom" placeholder="Enter category name..." style="margin-top:8px;display:none"/>
+  </div>
+  <button class="btn btn-p w100" id="et-save">Save ✨</button>
+</div></div>
+
+<!-- Add Habit -->
+<div class="overlay" id="m-add-habit"><div class="modal">
+  <div class="mh"><div class="mt">📅 Add Habit</div><button class="mclose" onclick="closeModal('m-add-habit')">×</button></div>
+  <div class="fg"><label class="fl">Habit Name</label><input class="fi" id="ah-name" placeholder="e.g. Cold shower 🚿"/></div>
+  <div class="fg"><label class="fl">Emoji</label><input class="fi" id="ah-emoji" placeholder="🌸" maxlength="2"/></div>
+  <button class="btn btn-p w100" onclick="addHabit(document.getElementById('ah-name').value,document.getElementById('ah-emoji').value);closeModal('m-add-habit');document.getElementById('ah-name').value='';document.getElementById('ah-emoji').value=''">Add Habit 💪</button>
+</div></div>
+
+<!-- Manage Habits -->
+<div class="overlay" id="m-del-habit"><div class="modal">
+  <div class="mh"><div class="mt">🗂️ Manage Habits</div><button class="mclose" onclick="closeModal('m-del-habit')">×</button></div>
+  <div id="habit-manage-list"></div>
+  <button class="btn btn-g w100 mt3" onclick="closeModal('m-del-habit')">Done</button>
+</div></div>
+
+<!-- Add Plan Meal -->
+<div class="overlay" id="m-add-plan-meal"><div class="modal">
+  <div class="mh"><div class="mt">📋 Add Planned Meal</div><button class="mclose" onclick="closeModal('m-add-plan-meal')">×</button></div>
+  <div class="fg"><label class="fl">Meal Time</label><select class="fsel" id="pm-time">
+    <option value="🌅 Breakfast">🌅 Breakfast</option><option value="🥗 Lunch">🥗 Lunch</option>
+    <option value="🌙 Dinner">🌙 Dinner</option><option value="🍎 Snack">🍎 Snack</option>
+    <option value="☕ Morning Drink">☕ Morning Drink</option><option value="🧃 Evening Drink">🧃 Evening Drink</option>
+  </select></div>
+  <div class="fg"><label class="fl">What you plan to eat</label><input class="fi" id="pm-food" placeholder="e.g. Oats with banana 🍌"/></div>
+  <div class="fg"><label class="fl">Protein (grams, optional)</label><input class="fi" type="number" id="pm-protein" placeholder="e.g. 20" min="0"/></div>
+  <div class="fg"><label class="fl">Calories (optional)</label><input class="fi" type="number" id="pm-cal" placeholder="e.g. 350" min="0"/></div>
+  <div class="fg"><label class="fl">📸 Meal Photo (optional)</label>
+    <div id="pm-img-preview" style="display:none;margin-bottom:8px;border-radius:10px;overflow:hidden;max-height:130px"><img id="pm-img-prev-img" style="width:100%;height:130px;object-fit:cover"/></div>
+    <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1.5px dashed var(--cb);border-radius:var(--rs);cursor:pointer;font-size:12px;color:var(--tx2);background:var(--bg3)">
+      <span style="font-size:20px">📷</span> Upload meal photo
+      <input type="file" accept="image/*" id="pm-img-file" style="display:none" onchange="previewMealImage(this,'pm')"/>
+    </label>
+    <button id="pm-img-clear" onclick="clearMealImage('pm')" style="display:none;margin-top:6px;font-size:11px;color:var(--tx3);background:none;border:none;cursor:pointer;text-decoration:underline">Remove photo</button>
+  </div>
+  <button class="btn btn-p w100" onclick="addPlanMeal()">Add to Plan 📋</button>
+</div></div>
+
+<!-- Log Eaten Meal -->
+<div class="overlay" id="m-add-eaten-meal"><div class="modal">
+  <div class="mh"><div class="mt">✅ Log Extra Food</div><button class="mclose" onclick="closeModal('m-add-eaten-meal')">×</button></div>
+  <p style="font-size:11px;color:var(--tx3);margin-bottom:14px">For planned meals, use the <strong>○ Ate?</strong> button. Use this for extra/unplanned food.</p>
+  <div class="fg"><label class="fl">Meal Time</label><select class="fsel" id="em-time">
+    <option value="🌅 Breakfast">🌅 Breakfast</option><option value="🥗 Lunch">🥗 Lunch</option>
+    <option value="🌙 Dinner">🌙 Dinner</option><option value="🍎 Snack">🍎 Snack</option>
+    <option value="☕ Morning Drink">☕ Morning Drink</option><option value="🧃 Evening Drink">🧃 Evening Drink</option>
+  </select></div>
+  <div class="fg"><label class="fl">What you ate</label><input class="fi" id="em-food" placeholder="e.g. 2 biscuits 🍪"/></div>
+  <div class="fg"><label class="fl">Protein (grams, optional)</label><input class="fi" type="number" id="em-protein" placeholder="e.g. 5" min="0"/></div>
+  <div class="fg"><label class="fl">Calories (optional)</label><input class="fi" type="number" id="em-cal" placeholder="e.g. 120" min="0"/></div>
+  <div class="fg"><label class="fl">How was it?</label><select class="fsel" id="em-feel">
+    <option value="😋 Delicious">😋 Delicious</option><option value="👍 Good">👍 Good</option>
+    <option value="😐 Okay">😐 Okay</option><option value="🍕 Indulged">🍕 Indulged a bit</option>
+  </select></div>
+  <div class="fg"><label class="fl">📸 Meal Photo (optional)</label>
+    <div id="em-img-preview" style="display:none;margin-bottom:8px;border-radius:10px;overflow:hidden;max-height:130px"><img id="em-img-prev-img" style="width:100%;height:130px;object-fit:cover"/></div>
+    <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1.5px dashed var(--cb);border-radius:var(--rs);cursor:pointer;font-size:12px;color:var(--tx2);background:var(--bg3)">
+      <span style="font-size:20px">📷</span> Upload meal photo
+      <input type="file" accept="image/*" id="em-img-file" style="display:none" onchange="previewMealImage(this,'em')"/>
+    </label>
+    <button id="em-img-clear" onclick="clearMealImage('em')" style="display:none;margin-top:6px;font-size:11px;color:var(--tx3);background:none;border:none;cursor:pointer;text-decoration:underline">Remove photo</button>
+  </div>
+  <button class="btn btn-p w100" onclick="addEatenMeal()">Log It! ✅</button>
+</div></div>
+
+<!-- Add Weekly Task -->
+<div class="overlay" id="m-add-wtask"><div class="modal">
+  <div class="mh"><div class="mt">➕ Add Task — <span id="wt-day-label" style="color:var(--p1)">Monday</span></div><button class="mclose" onclick="closeModal('m-add-wtask')">×</button></div>
+  <input type="hidden" id="wt-ds"/>
+  <div class="fg"><label class="fl">Task</label><input class="fi" id="wt-input" placeholder="e.g. Review notes 📚"/></div>
+  <button class="btn btn-p w100" onclick="saveWTask()">Add Task ✅</button>
+</div></div>
+
+<!-- Add Goal -->
+<div class="overlay" id="m-add-goal"><div class="modal">
+  <div class="mh"><div class="mt">🌷 Add Goal</div><button class="mclose" onclick="closeModal('m-add-goal')">×</button></div>
+  <div class="fg"><label class="fl">Goal Title</label><input class="fi" id="ag-title" placeholder="e.g. Run a 5K 🏃‍♀️"/></div>
+  <div class="fg"><label class="fl">Description</label><input class="fi" id="ag-desc" placeholder="Why is this important?"/></div>
+  <div class="fg"><label class="fl">Emoji (if no image)</label><input class="fi" id="ag-emoji" placeholder="🌷" maxlength="2"/></div>
+  <div class="fg"><label class="fl">📸 Vision Image (from your device)</label>
+    <div id="ag-img-preview" style="display:none;margin-bottom:8px;border-radius:10px;overflow:hidden;max-height:150px"><img id="ag-img-prev-img" style="width:100%;height:150px;object-fit:cover"/></div>
+    <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1.5px dashed var(--cb);border-radius:var(--rs);cursor:pointer;font-size:12px;color:var(--tx2);background:var(--bg3)">
+      <span style="font-size:20px">🖼️</span> Click to upload image from your laptop
+      <input type="file" accept="image/*" id="ag-img-file" style="display:none" onchange="previewGoalImage(this)"/>
+    </label>
+    <button id="ag-img-clear" onclick="clearGoalImage()" style="display:none;margin-top:6px;font-size:11px;color:var(--tx3);background:none;border:none;cursor:pointer;text-decoration:underline">Remove image</button>
+  </div>
+  <div class="fg"><label class="fl">Motivational Quote (optional)</label><input class="fi" id="ag-quote" placeholder="Your dream awaits..."/></div>
+  <button class="btn btn-p w100" onclick="addGoalFromModal()">Add to Vision Board 🌷</button>
+</div></div>
+
+<!-- New Journal -->
+<div class="overlay" id="m-new-journal"><div class="modal" style="max-width:560px">
+  <div class="mh"><div class="mt">✍️ New Journal Entry</div><button class="mclose" onclick="closeModal('m-new-journal')">×</button></div>
+  <div class="fg"><label class="fl">Title</label><input class="fi" id="nj-title" placeholder="Today's thoughts..."/></div>
+  <div class="fg"><label class="fl">Mood Emoji</label><input class="fi" id="nj-mood" placeholder="😊" maxlength="2"/></div>
+  <div class="fg"><label class="fl">Tags (comma separated)</label><input class="fi" id="nj-tags" placeholder="gratitude, growth, goals"/></div>
+  <div class="fg"><label class="fl">Your Entry</label><textarea class="fta" id="nj-text" placeholder="Dear diary..." style="min-height:140px"></textarea></div>
+  <button class="btn btn-p w100" onclick="saveJournal()">Save Entry ✍️ +8 XP</button>
+</div></div>
+
+<!-- View Journal -->
+<div class="overlay" id="m-view-journal"><div class="modal" style="max-width:580px">
+  <div class="mh">
+    <div><div class="mt" id="vj-title">Entry</div><div style="font-size:11px;color:var(--tx3);margin-top:2px" id="vj-date"></div></div>
+    <div class="flex ia g2x"><span id="vj-mood" style="font-size:22px">📖</span><button class="mclose" onclick="closeModal('m-view-journal')">×</button></div>
+  </div>
+  <div id="vj-tags" class="flex fw g2x mb4"></div>
+  <div id="vj-text" style="font-size:14px;line-height:1.8;color:var(--tx2)"></div>
+  <hr class="div"/>
+  <button class="btn btn-d btn-sm" id="vj-del">🗑️ Delete Entry</button>
+</div></div>
+
+<!-- Edit Mood -->
+<div class="overlay" id="m-edit-mood"><div class="modal">
+  <div class="mh"><div class="mt">✏️ Edit Mood Entry</div><button class="mclose" onclick="closeModal('m-edit-mood')">×</button></div>
+  <div class="fg"><label class="fl">Mood Emoji</label><input class="fi" id="edit-mood-emoji" maxlength="2" placeholder="😊"/></div>
+  <div class="fg"><label class="fl">Mood Label</label><input class="fi" id="edit-mood-label" placeholder="e.g. Happy"/></div>
+  <div class="fg"><label class="fl">Note</label><textarea class="fta" id="edit-mood-note" style="min-height:80px" placeholder="How were you feeling?"></textarea></div>
+  <button class="btn btn-p w100" id="edit-mood-save">Save Changes 💌</button>
+</div></div>
+
+<!-- Soft Reset -->
+<div class="overlay" id="m-softreset"><div class="modal">
+  <div class="mh"><div class="mt">💖 Soft Reset</div><button class="mclose" onclick="closeModal('m-softreset')">×</button></div>
+  <div class="tc" style="padding:12px 0">
+    <span class="sr-em">🌸</span>
+    <div class="sr-msg">"It's okay, let's glow again ✨"</div>
+    <p style="font-size:12px;color:var(--tx2);line-height:1.7">Life happens. Missing days doesn't mean you failed. Reset with zero guilt and start fresh. You've got this. 💖</p>
+  </div>
+  <div class="flex g2x mt4">
+    <button class="btn btn-g w100" onclick="closeModal('m-softreset')" style="flex:1;justify-content:center">Cancel</button>
+    <button class="btn btn-p w100" onclick="doSoftReset()" style="flex:1;justify-content:center">Reset & Glow 🌸</button>
+  </div>
+</div></div>
+
+<div id="cc" class="cc"></div>
+<div id="toasts" class="toasts"></div>
+
+<script src="js/app.js"></script>
+<script>
+// Mood button styles
+document.querySelectorAll('.mdbtn').forEach(function(b){
+  b.style.cssText='display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 13px;border-radius:var(--rs);border:2px solid var(--cb);background:var(--bg3);cursor:pointer;transition:all 0.25s;font-size:10px;color:var(--tx2);font-weight:700';
+  b.addEventListener('mouseenter',function(){ b.style.borderColor='var(--p1)'; b.style.background='var(--pl)'; });
+  b.addEventListener('mouseleave',function(){ if(!b._active){ b.style.borderColor='var(--cb)'; b.style.background='var(--bg3)'; }});
+});
+// Override pickMood for visual feedback
+var _origPick = window.pickMood;
+window.pickMood = function(emoji, label){
+  document.querySelectorAll('.mdbtn').forEach(function(b){ b._active=false; b.style.borderColor='var(--cb)'; b.style.background='var(--bg3)'; b.style.color='var(--tx2)'; });
+  var btn = event.currentTarget;
+  btn._active=true; btn.style.borderColor='var(--p1)'; btn.style.background='var(--pl)'; btn.style.color='var(--p3)';
+  if(_origPick) _origPick(emoji, label);
+};
+// Manage habits modal
+window.addEventListener('load', function(){
+  var _origOpen = window.openModal;
+  window.openModal = function(id){
+    if(id==='m-del-habit'){
+      var el=document.getElementById('habit-manage-list');
+      el.innerHTML='';
+      if(!S.habits||!S.habits.length){ el.innerHTML='<p class="tc tm" style="padding:12px">No habits yet 💪</p>'; }
+      else{ S.habits.forEach(function(h){ el.innerHTML+=`<div class="task" style="margin-bottom:6px"><span style="font-size:18px">${h.emoji||'🌸'}</span><span class="task-txt">${h.name}</span><button class="btn btn-d btn-sm" onclick="delHabit('${h.id}');openModal('m-del-habit')">🗑️</button></div>`; }); }
+    }
+    if(id==='m-add-task'){
+      // Refresh custom category options
+      var sel=document.getElementById('at-cat');
+      var customCats=getCustomCategories();
+      // Remove old custom options (keep first 3 built-ins + the __custom__ option)
+      while(sel.options.length>4) sel.remove(3);
+      customCats.forEach(function(c){
+        var opt=document.createElement('option');
+        opt.value=c; opt.textContent=c.charAt(0).toUpperCase()+c.slice(1);
+        sel.insertBefore(opt, sel.options[3]);
+      });
+    }
+    document.getElementById(id).classList.add('on');
+  };
+});
+// Enter key in modals
+document.addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&e.target.tagName!=='TEXTAREA'){
+    var ov=document.querySelector('.overlay.on');
+    if(ov){ var btn=ov.querySelector('.btn-p:not(#pom-start):not(#et-save)'); if(btn) btn.click(); }
+  }
+});
+</script>
+</body>
+</html>
