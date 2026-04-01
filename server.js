@@ -1,53 +1,113 @@
 /**
  * GlowUp Diary — Backend Server
- * Pure Node.js, zero external dependencies.
- * Uses built-in: http, crypto, fs, path
+ * Pure Node.js, zero npm dependencies.
+ * Uses Turso (hosted SQLite) via HTTP API for permanent storage.
  *
- * Run: node server.js
- * Default port: 3001
+ * Required environment variables on Render:
+ *   TURSO_URL    — e.g. https://glowup-yashasvii27.turso.io
+ *   TURSO_TOKEN  — your Turso auth token
+ *   JWT_SECRET   — any long random string
  */
 
-const http = require('http');
+const http   = require('http');
+const https  = require('https');
 const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
+const fs     = require('fs');
+const path   = require('path');
 
-// ─── CONFIG ──────────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 3001;
-const DATA_FILE = path.join(__dirname, 'data', 'db.json');
-const JWT_SECRET = process.env.JWT_SECRET || 'glowup-secret-change-in-production-' + Date.now();
-const TOKEN_TTL_HOURS = 720; // 30 days
+const PORT        = process.env.PORT || 3001;
+const JWT_SECRET  = process.env.JWT_SECRET || 'glowup-change-me-' + crypto.randomBytes(8).toString('hex');
+const TURSO_URL   = (process.env.TURSO_URL || '').replace(/\/$/, '').replace('libsql://', 'https://');
+const TURSO_TOKEN = process.env.TURSO_TOKEN || '';
+const TOKEN_TTL   = 720 * 3600; // 30 days
 
-// ─── DATA STORE ──────────────────────────────────────────────────────────────
-// db.json structure:
-// {
-//   users: { email: { name, email, passwordHash, passwordSalt, joined, uid } },
-//   userData: { uid: { ...all user app data } }
-// }
-
-function ensureDataDir() {
-  const dir = path.dirname(DATA_FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify({ users: {}, userData: {} }, null, 2));
-  }
+if (!TURSO_URL || !TURSO_TOKEN) {
+  console.warn('WARNING: TURSO_URL and TURSO_TOKEN not set. DB calls will fail.');
 }
 
-function readDB() {
-  try {
-    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-  } catch (e) {
-    return { users: {}, userData: {} };
-  }
+// ─── TURSO HTTP API ───────────────────────────────────────────────────────────
+function tursoRequest(statements) {
+  const body = JSON.stringify({
+    requests: statements.map(s => ({
+      type: 'execute',
+      stmt: {
+        sql: s.q,
+        args: (s.params || []).map(v => {
+          if (v === null || v === undefined) return { type: 'null' };
+          if (typeof v === 'number') return { type: 'integer', value: String(v) };
+          return { type: 'text', value: String(v) };
+        }),
+      },
+    })).concat([{ type: 'close' }]),
+  });
+
+  return new Promise((resolve, reject) => {
+    const url  = new URL('/v2/pipeline', TURSO_URL);
+    const opts = {
+      hostname: url.hostname,
+      path:     url.pathname,
+      method:   'POST',
+      headers: {
+        'Authorization':  'Bearer ' + TURSO_TOKEN,
+        'Content-Type':   'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+    };
+    const req = https.request(opts, res => {
+      let raw = '';
+      res.on('data', c => raw += c);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(raw);
+          for (const r of parsed.results || []) {
+            if (r.type === 'error') return reject(new Error(r.error?.message || 'Turso error'));
+          }
+          resolve(parsed.results || []);
+        } catch(e) { reject(e); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
 }
 
-function writeDB(db) {
+function resultToRows(result) {
+  if (!result || result.type !== 'ok') return [];
+  const cols = (result.response?.result?.cols || []).map(c => c.name);
+  const rows = result.response?.result?.rows || [];
+  return rows.map(row => Object.fromEntries(cols.map((col, i) => [col, row[i]?.value ?? null])));
+}
+
+async function dbRun(sql, params = []) {
+  const results = await tursoRequest([{ q: sql, params }]);
+  return results[0];
+}
+async function dbGet(sql, params = []) {
+  return resultToRows(await dbRun(sql, params))[0] || null;
+}
+
+// ─── SCHEMA ───────────────────────────────────────────────────────────────────
+async function initDB() {
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(db, null, 2));
-    return true;
-  } catch (e) {
-    console.error('writeDB error:', e);
-    return false;
+    await tursoRequest([
+      { q: `CREATE TABLE IF NOT EXISTS users (
+          uid           TEXT PRIMARY KEY,
+          email         TEXT UNIQUE NOT NULL,
+          name          TEXT NOT NULL,
+          password_hash TEXT NOT NULL,
+          password_salt TEXT NOT NULL,
+          joined        TEXT NOT NULL
+        )` },
+      { q: `CREATE TABLE IF NOT EXISTS user_data (
+          uid      TEXT PRIMARY KEY,
+          data     TEXT NOT NULL DEFAULT '{}',
+          saved_at INTEGER
+        )` },
+    ]);
+    console.log('DB ready');
+  } catch(e) {
+    console.error('DB init error:', e.message);
   }
 }
 
@@ -57,290 +117,193 @@ function hashPassword(password, salt) {
   const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha256').toString('hex');
   return { hash, salt };
 }
-
 function verifyPassword(password, hash, salt) {
-  const result = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha256').toString('hex');
-  return crypto.timingSafeEqual(Buffer.from(result, 'hex'), Buffer.from(hash, 'hex'));
+  try {
+    const r = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha256').toString('hex');
+    return crypto.timingSafeEqual(Buffer.from(r,'hex'), Buffer.from(hash,'hex'));
+  } catch { return false; }
 }
+function generateUID() { return crypto.randomBytes(16).toString('hex'); }
 
-function generateUID() {
-  return crypto.randomBytes(16).toString('hex');
+// ─── JWT ─────────────────────────────────────────────────────────────────────
+function b64url(s) {
+  return Buffer.from(s).toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
 }
-
-// ─── JWT (hand-rolled, no library) ───────────────────────────────────────────
-function b64url(str) {
-  return Buffer.from(str).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
 function createToken(payload) {
-  const header = b64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-  const exp = Math.floor(Date.now() / 1000) + TOKEN_TTL_HOURS * 3600;
-  const body = b64url(JSON.stringify({ ...payload, exp, iat: Math.floor(Date.now() / 1000) }));
-  const sig = crypto.createHmac('sha256', JWT_SECRET).update(header + '.' + body).digest('base64')
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  return `${header}.${body}.${sig}`;
+  const h = b64url(JSON.stringify({alg:'HS256',typ:'JWT'}));
+  const b = b64url(JSON.stringify({...payload, exp:Math.floor(Date.now()/1000)+TOKEN_TTL, iat:Math.floor(Date.now()/1000)}));
+  const s = crypto.createHmac('sha256',JWT_SECRET).update(h+'.'+b).digest('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+  return `${h}.${b}.${s}`;
 }
-
 function verifyToken(token) {
   try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    const [header, body, sig] = parts;
-    const expectedSig = crypto.createHmac('sha256', JWT_SECRET).update(header + '.' + body).digest('base64')
-      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-    if (sig !== expectedSig) return null;
-    const payload = JSON.parse(Buffer.from(body, 'base64').toString('utf8'));
-    if (payload.exp < Math.floor(Date.now() / 1000)) return null;
-    return payload;
-  } catch (e) {
-    return null;
-  }
+    const [h,b,s] = token.split('.');
+    if(!h||!b||!s) return null;
+    const exp = crypto.createHmac('sha256',JWT_SECRET).update(h+'.'+b).digest('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+    if(s!==exp) return null;
+    const p = JSON.parse(Buffer.from(b,'base64').toString('utf8'));
+    if(p.exp < Math.floor(Date.now()/1000)) return null;
+    return p;
+  } catch { return null; }
 }
 
 // ─── HTTP HELPERS ─────────────────────────────────────────────────────────────
 function parseBody(req) {
-  return new Promise((resolve, reject) => {
-    let body = '';
-    req.on('data', chunk => { body += chunk; if (body.length > 10 * 1024 * 1024) reject(new Error('Body too large')); });
-    req.on('end', () => {
-      try { resolve(body ? JSON.parse(body) : {}); }
-      catch (e) { reject(e); }
-    });
-    req.on('error', reject);
+  return new Promise((res,rej) => {
+    let body='';
+    req.on('data', c => { body+=c; if(body.length>20*1024*1024) rej(new Error('Too large')); });
+    req.on('end', () => { try { res(body?JSON.parse(body):{}); } catch(e){rej(e);} });
+    req.on('error', rej);
   });
 }
-
 function send(res, status, data) {
   const body = JSON.stringify(data);
   res.writeHead(status, {
-    'Content-Type': 'application/json',
-    'Content-Length': Buffer.byteLength(body),
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Content-Type':'application/json',
+    'Content-Length':Buffer.byteLength(body),
+    'Access-Control-Allow-Origin':'*',
+    'Access-Control-Allow-Methods':'GET,POST,PUT,DELETE,OPTIONS',
+    'Access-Control-Allow-Headers':'Content-Type,Authorization',
   });
   res.end(body);
 }
-
-function getToken(req) {
-  const auth = req.headers['authorization'] || '';
-  return auth.startsWith('Bearer ') ? auth.slice(7) : null;
-}
-
 function requireAuth(req, res) {
-  const token = getToken(req);
-  if (!token) { send(res, 401, { error: 'No token provided' }); return null; }
-  const payload = verifyToken(token);
-  if (!payload) { send(res, 401, { error: 'Invalid or expired token' }); return null; }
-  return payload;
+  const auth = req.headers['authorization']||'';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  if(!token){ send(res,401,{error:'No token'}); return null; }
+  const p = verifyToken(token);
+  if(!p){ send(res,401,{error:'Invalid or expired token — please log in again'}); return null; }
+  return p;
 }
 
-// ─── STATIC FILE SERVING ──────────────────────────────────────────────────────
-const STATIC_DIR = path.join(__dirname, 'public');
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.css': 'text/css',
-  '.js': 'application/javascript',
-  '.json': 'application/json',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.ico': 'image/x-icon',
-  '.svg': 'image/svg+xml',
-  '.woff2': 'font/woff2',
-  '.woff': 'font/woff',
-};
+// ─── RATE LIMIT ───────────────────────────────────────────────────────────────
+const _rl = new Map();
+function rateLimit(key, limit, ms) {
+  const now=Date.now();
+  if(!_rl.has(key)) _rl.set(key,{c:0,t:now});
+  const e=_rl.get(key);
+  if(now-e.t>ms){e.c=0;e.t=now;}
+  return ++e.c > limit;
+}
 
+// ─── STATIC FILES ─────────────────────────────────────────────────────────────
+const STATIC = path.join(__dirname,'public');
+const MIME   = {'.html':'text/html; charset=utf-8','.css':'text/css','.js':'application/javascript','.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.ico':'image/x-icon','.svg':'image/svg+xml'};
 function serveStatic(req, res, urlPath) {
-  let filePath = path.join(STATIC_DIR, urlPath === '/' ? 'index.html' : urlPath);
-  // Security: prevent path traversal
-  if (!filePath.startsWith(STATIC_DIR)) { send(res, 403, { error: 'Forbidden' }); return; }
-  if (!fs.existsSync(filePath)) {
-    // SPA fallback: serve index.html for non-API routes
-    const indexPath = path.join(STATIC_DIR, 'index.html');
-    if (fs.existsSync(indexPath)) {
-      filePath = indexPath;
-    } else {
-      send(res, 404, { error: 'Not found' });
-      return;
-    }
-  }
-  const ext = path.extname(filePath);
-  const mime = MIME[ext] || 'application/octet-stream';
-  const content = fs.readFileSync(filePath);
-  res.writeHead(200, { 'Content-Type': mime, 'Access-Control-Allow-Origin': '*' });
-  res.end(content);
+  let fp = path.join(STATIC, urlPath==='/'?'index.html':urlPath);
+  if(!fp.startsWith(STATIC)){ send(res,403,{error:'Forbidden'}); return; }
+  if(!fs.existsSync(fp)){ fp=path.join(STATIC,'index.html'); if(!fs.existsSync(fp)){ send(res,404,{error:'Not found'}); return; } }
+  res.writeHead(200,{'Content-Type':MIME[path.extname(fp)]||'application/octet-stream','Access-Control-Allow-Origin':'*'});
+  res.end(fs.readFileSync(fp));
 }
 
-// ─── RATE LIMITING (simple in-memory) ────────────────────────────────────────
-const rateLimitMap = new Map();
-function rateLimit(ip, limit = 10, windowMs = 60000) {
-  const now = Date.now();
-  const key = ip;
-  if (!rateLimitMap.has(key)) rateLimitMap.set(key, { count: 0, start: now });
-  const entry = rateLimitMap.get(key);
-  if (now - entry.start > windowMs) { entry.count = 0; entry.start = now; }
-  entry.count++;
-  return entry.count > limit;
-}
-// Clean rate limit map every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [k, v] of rateLimitMap) { if (now - v.start > 60000) rateLimitMap.delete(k); }
-}, 300000);
-
-// ─── ROUTES ───────────────────────────────────────────────────────────────────
+// ─── API ──────────────────────────────────────────────────────────────────────
 async function handleAPI(req, res, urlPath) {
-  const method = req.method;
-  const ip = req.socket.remoteAddress || '';
+  const m  = req.method;
+  const ip = req.socket.remoteAddress||'';
 
-  // ── POST /api/signup ──────────────────────────────────────────────────────
-  if (method === 'POST' && urlPath === '/api/signup') {
-    if (rateLimit(ip + ':signup', 5, 60000)) {
-      return send(res, 429, { error: 'Too many attempts. Try again in a minute.' });
-    }
-    let body;
-    try { body = await parseBody(req); } catch { return send(res, 400, { error: 'Invalid JSON' }); }
-
-    const { name, email, password } = body;
-    if (!name || !email || !password) return send(res, 400, { error: 'Name, email and password are required' });
-    if (name.trim().length < 1) return send(res, 400, { error: 'Name cannot be empty' });
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return send(res, 400, { error: 'Invalid email address' });
-    if (password.length < 6) return send(res, 400, { error: 'Password must be at least 6 characters' });
-
-    const db = readDB();
-    const emailKey = email.toLowerCase().trim();
-    if (db.users[emailKey]) return send(res, 409, { error: 'An account with this email already exists' });
-
-    const { hash, salt } = hashPassword(password);
-    const uid = generateUID();
-    const joined = new Date().toISOString();
-
-    db.users[emailKey] = { name: name.trim(), email: emailKey, passwordHash: hash, passwordSalt: salt, joined, uid };
-    db.userData[uid] = {}; // empty initial data — frontend will push its defaults
-    writeDB(db);
-
-    const token = createToken({ uid, email: emailKey, name: name.trim() });
-    return send(res, 201, { token, user: { name: name.trim(), email: emailKey, uid, joined } });
+  // POST /api/signup
+  if (m==='POST' && urlPath==='/api/signup') {
+    if(rateLimit(ip+':su',5,60000)) return send(res,429,{error:'Too many attempts. Wait a minute.'});
+    let b; try{b=await parseBody(req);}catch{return send(res,400,{error:'Bad request'});}
+    const {name,email,password}=b;
+    if(!name?.trim()||!email?.trim()||!password) return send(res,400,{error:'Name, email and password are required'});
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return send(res,400,{error:'Invalid email address'});
+    if(password.length<6) return send(res,400,{error:'Password must be at least 6 characters'});
+    const key=email.toLowerCase().trim();
+    const exists=await dbGet('SELECT uid FROM users WHERE email=?',[key]);
+    if(exists) return send(res,409,{error:'An account with this email already exists'});
+    const {hash,salt}=hashPassword(password);
+    const uid=generateUID(), joined=new Date().toISOString();
+    await dbRun('INSERT INTO users (uid,email,name,password_hash,password_salt,joined) VALUES (?,?,?,?,?,?)',[uid,key,name.trim(),hash,salt,joined]);
+    await dbRun('INSERT INTO user_data (uid,data,saved_at) VALUES (?,?,?)',[uid,'{}',Date.now()]);
+    console.log('Signup:',key);
+    return send(res,201,{token:createToken({uid,email:key,name:name.trim()}),user:{name:name.trim(),email:key,uid,joined}});
   }
 
-  // ── POST /api/login ───────────────────────────────────────────────────────
-  if (method === 'POST' && urlPath === '/api/login') {
-    if (rateLimit(ip + ':login', 10, 60000)) {
-      return send(res, 429, { error: 'Too many login attempts. Try again in a minute.' });
-    }
-    let body;
-    try { body = await parseBody(req); } catch { return send(res, 400, { error: 'Invalid JSON' }); }
-
-    const { email, password } = body;
-    if (!email || !password) return send(res, 400, { error: 'Email and password are required' });
-
-    const db = readDB();
-    const emailKey = email.toLowerCase().trim();
-    const user = db.users[emailKey];
-
-    if (!user) return send(res, 401, { error: 'No account found with this email' });
-    let valid = false;
-    try { valid = verifyPassword(password, user.passwordHash, user.passwordSalt); } catch { valid = false; }
-    if (!valid) return send(res, 401, { error: 'Incorrect password' });
-
-    const token = createToken({ uid: user.uid, email: emailKey, name: user.name });
-    return send(res, 200, { token, user: { name: user.name, email: emailKey, uid: user.uid, joined: user.joined } });
+  // POST /api/login
+  if (m==='POST' && urlPath==='/api/login') {
+    if(rateLimit(ip+':li',10,60000)) return send(res,429,{error:'Too many login attempts. Wait a minute.'});
+    let b; try{b=await parseBody(req);}catch{return send(res,400,{error:'Bad request'});}
+    const {email,password}=b;
+    if(!email||!password) return send(res,400,{error:'Email and password are required'});
+    const key=email.toLowerCase().trim();
+    const user=await dbGet('SELECT * FROM users WHERE email=?',[key]);
+    if(!user) return send(res,401,{error:'No account found with this email'});
+    if(!verifyPassword(password,user.password_hash,user.password_salt)) return send(res,401,{error:'Incorrect password'});
+    console.log('Login:',key);
+    return send(res,200,{token:createToken({uid:user.uid,email:key,name:user.name}),user:{name:user.name,email:key,uid:user.uid,joined:user.joined}});
   }
 
-  // ── GET /api/me ───────────────────────────────────────────────────────────
-  if (method === 'GET' && urlPath === '/api/me') {
-    const auth = requireAuth(req, res); if (!auth) return;
-    const db = readDB();
-    const user = db.users[auth.email];
-    if (!user) return send(res, 404, { error: 'User not found' });
-    return send(res, 200, { name: user.name, email: user.email, uid: user.uid, joined: user.joined });
+  // GET /api/me
+  if (m==='GET' && urlPath==='/api/me') {
+    const auth=requireAuth(req,res); if(!auth) return;
+    const user=await dbGet('SELECT name,email,uid,joined FROM users WHERE uid=?',[auth.uid]);
+    if(!user) return send(res,404,{error:'User not found'});
+    return send(res,200,user);
   }
 
-  // ── GET /api/data ─────────────────────────────────────────────────────────
-  if (method === 'GET' && urlPath === '/api/data') {
-    const auth = requireAuth(req, res); if (!auth) return;
-    const db = readDB();
-    const data = db.userData[auth.uid] || {};
-    return send(res, 200, { data });
+  // GET /api/data
+  if (m==='GET' && urlPath==='/api/data') {
+    const auth=requireAuth(req,res); if(!auth) return;
+    const row=await dbGet('SELECT data FROM user_data WHERE uid=?',[auth.uid]);
+    let data={}; try{data=row?JSON.parse(row.data):{};}catch{}
+    return send(res,200,{data});
   }
 
-  // ── PUT /api/data ─────────────────────────────────────────────────────────
-  // Full state replace (sent from client on save)
-  if (method === 'PUT' && urlPath === '/api/data') {
-    const auth = requireAuth(req, res); if (!auth) return;
-    let body;
-    try { body = await parseBody(req); } catch { return send(res, 400, { error: 'Invalid JSON' }); }
-
-    // Strip sensitive fields just in case
-    delete body.password; delete body.passwordHash; delete body.passwordSalt;
-
-    const db = readDB();
-    db.userData[auth.uid] = { ...body, _savedAt: Date.now() };
-    writeDB(db);
-    return send(res, 200, { ok: true });
+  // PUT /api/data
+  if (m==='PUT' && urlPath==='/api/data') {
+    const auth=requireAuth(req,res); if(!auth) return;
+    let b; try{b=await parseBody(req);}catch{return send(res,400,{error:'Bad request'});}
+    delete b.password; delete b.passwordHash; delete b.passwordSalt;
+    const json=JSON.stringify({...b,_savedAt:Date.now()});
+    await dbRun(
+      `INSERT INTO user_data (uid,data,saved_at) VALUES (?,?,?)
+       ON CONFLICT(uid) DO UPDATE SET data=excluded.data, saved_at=excluded.saved_at`,
+      [auth.uid,json,Date.now()]
+    );
+    return send(res,200,{ok:true});
   }
 
-  // ── POST /api/change-password ─────────────────────────────────────────────
-  if (method === 'POST' && urlPath === '/api/change-password') {
-    const auth = requireAuth(req, res); if (!auth) return;
-    let body;
-    try { body = await parseBody(req); } catch { return send(res, 400, { error: 'Invalid JSON' }); }
-
-    const { currentPassword, newPassword } = body;
-    if (!currentPassword || !newPassword) return send(res, 400, { error: 'Both passwords required' });
-    if (newPassword.length < 6) return send(res, 400, { error: 'New password must be at least 6 characters' });
-
-    const db = readDB();
-    const user = db.users[auth.email];
-    if (!user) return send(res, 404, { error: 'User not found' });
-    if (!verifyPassword(currentPassword, user.passwordHash, user.passwordSalt)) {
-      return send(res, 401, { error: 'Current password is incorrect' });
-    }
-    const { hash, salt } = hashPassword(newPassword);
-    user.passwordHash = hash;
-    user.passwordSalt = salt;
-    writeDB(db);
-    return send(res, 200, { ok: true });
+  // POST /api/change-password
+  if (m==='POST' && urlPath==='/api/change-password') {
+    const auth=requireAuth(req,res); if(!auth) return;
+    let b; try{b=await parseBody(req);}catch{return send(res,400,{error:'Bad request'});}
+    const {currentPassword,newPassword}=b;
+    if(!currentPassword||!newPassword) return send(res,400,{error:'Both passwords required'});
+    if(newPassword.length<6) return send(res,400,{error:'New password must be at least 6 characters'});
+    const user=await dbGet('SELECT * FROM users WHERE uid=?',[auth.uid]);
+    if(!user) return send(res,404,{error:'User not found'});
+    if(!verifyPassword(currentPassword,user.password_hash,user.password_salt)) return send(res,401,{error:'Current password is incorrect'});
+    const {hash,salt}=hashPassword(newPassword);
+    await dbRun('UPDATE users SET password_hash=?,password_salt=? WHERE uid=?',[hash,salt,auth.uid]);
+    return send(res,200,{ok:true});
   }
 
-  // 404
-  return send(res, 404, { error: 'API route not found' });
+  return send(res,404,{error:'Not found'});
 }
 
-// ─── MAIN SERVER ──────────────────────────────────────────────────────────────
-const server = http.createServer(async (req, res) => {
+// ─── SERVER ───────────────────────────────────────────────────────────────────
+const server = http.createServer(async (req,res) => {
   const urlPath = req.url.split('?')[0];
-
-  // CORS preflight
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    });
+  if(req.method==='OPTIONS'){
+    res.writeHead(204,{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Methods':'GET,POST,PUT,DELETE,OPTIONS','Access-Control-Allow-Headers':'Content-Type,Authorization'});
     return res.end();
   }
-
-  // API routes
-  if (urlPath.startsWith('/api/')) {
-    return handleAPI(req, res, urlPath).catch(err => {
-      console.error('API error:', err);
-      send(res, 500, { error: 'Internal server error' });
+  if(urlPath.startsWith('/api/')){
+    return handleAPI(req,res,urlPath).catch(err=>{
+      console.error('API error:',err.message);
+      send(res,500,{error:'Internal server error'});
     });
   }
-
-  // Static files
-  serveStatic(req, res, urlPath);
+  serveStatic(req,res,urlPath);
 });
 
-ensureDataDir();
-server.listen(PORT, () => {
-  console.log(`\n🌸 GlowUp Diary Server running on http://localhost:${PORT}`);
-  console.log(`📁 Serving frontend from: ${STATIC_DIR}`);
-  console.log(`💾 Database: ${DATA_FILE}\n`);
+initDB().then(()=>{
+  server.listen(PORT,()=>{
+    console.log(`\nGlowUp Diary Server running on port ${PORT}`);
+    console.log(`Turso: ${TURSO_URL||'(not configured)'}`);
+  });
 });
-
-// Graceful shutdown
-process.on('SIGTERM', () => { server.close(() => process.exit(0)); });
-process.on('SIGINT', () => { server.close(() => process.exit(0)); });
+process.on('SIGTERM',()=>server.close(()=>process.exit(0)));
+process.on('SIGINT', ()=>server.close(()=>process.exit(0)));
