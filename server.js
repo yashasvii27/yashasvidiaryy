@@ -265,6 +265,22 @@ async function handleAPI(req, res, urlPath) {
     return send(res,200,{ok:true});
   }
 
+  // POST /api/data-beacon — called by sendBeacon on page close (no auth header support in beacon)
+  // Falls through to PUT /api/data logic, but accepts text/plain content-type too
+  if (m==='POST' && urlPath==='/api/data-beacon') {
+    const auth=requireAuth(req,res); if(!auth) return;
+    let b; try{b=await parseBody(req);}catch{return send(res,400,{error:'Bad request'});}
+    delete b.password; delete b.passwordHash; delete b.passwordSalt;
+    if(!b || !b.user) return send(res,400,{error:'No data'});
+    const json=JSON.stringify({...b,_savedAt:Date.now()});
+    await dbRun(
+      `INSERT INTO user_data (uid,data,saved_at) VALUES (?,?,?)
+       ON CONFLICT(uid) DO UPDATE SET data=excluded.data, saved_at=excluded.saved_at`,
+      [auth.uid,json,Date.now()]
+    );
+    return send(res,200,{ok:true});
+  }
+
   // POST /api/change-password
   if (m==='POST' && urlPath==='/api/change-password') {
     const auth=requireAuth(req,res); if(!auth) return;
