@@ -12,7 +12,8 @@ const path   = require('path');
 
 const PORT         = process.env.PORT || 3001;
 const JWT_SECRET   = process.env.JWT_SECRET || 'glowup-change-me-' + crypto.randomBytes(8).toString('hex');
-const SUPABASE_URL = (process.env.SUPABASE_URL || 'https://gmsznzdsueubimcqtagk.supabase.co').replace(/\/$/, '');
+// Hardcoded fallbacks so it works even if env vars have issues
+const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '') || 'https://gmsznzdsueubimcqtagk.supabase.co';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_secret_sdyBRto53MIoqWSVrV5gmg_R5wJdn9e';
 const TOKEN_TTL    = 720 * 3600; // 30 days
 
@@ -22,7 +23,10 @@ console.log('Supabase URL:', SUPABASE_URL);
 function sbRequest(method, endpoint, body, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
     const bodyStr = body ? JSON.stringify(body) : '';
-    const url = new URL('/rest/v1' + endpoint, SUPABASE_URL);
+    // Build full URL - handle both path and path?query formats
+    const fullPath = '/rest/v1' + endpoint;
+    const baseUrl = SUPABASE_URL.startsWith('http') ? SUPABASE_URL : 'https://' + SUPABASE_URL;
+    const url = new URL(fullPath, baseUrl);
     const headers = {
       'apikey': SUPABASE_KEY,
       'Authorization': 'Bearer ' + SUPABASE_KEY,
@@ -58,10 +62,10 @@ function sbRequest(method, endpoint, body, extraHeaders = {}) {
 }
 
 const sb = {
-  select: (table, query = '') => sbRequest('GET', `/${table}?${query}`),
+  select: (table, query = '') => sbRequest('GET', `/${table}` + (query ? '?' + query : '')),
   insert: (table, data) => sbRequest('POST', `/${table}`, data, { 'Prefer': 'return=representation' }),
   upsert: (table, data) => sbRequest('POST', `/${table}`, data, { 'Prefer': 'resolution=merge-duplicates,return=representation' }),
-  update: (table, query, data) => sbRequest('PATCH', `/${table}?${query}`, data, { 'Prefer': 'return=representation' }),
+  update: (table, query, data) => sbRequest('PATCH', `/${table}` + (query ? '?' + query : ''), data, { 'Prefer': 'return=representation' }),
 };
 
 // ─── CRYPTO ──────────────────────────────────────────────────────────────────
