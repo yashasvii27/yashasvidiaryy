@@ -64,7 +64,8 @@ function getToken() { return _token || localStorage.getItem('gd_token'); }
 function setToken(t) { _token = t; if(t) localStorage.setItem('gd_token', t); else localStorage.removeItem('gd_token'); }
 
 // ===== API HELPERS =====
-async function apiCall(method, path, body) {
+// Retries on network failure (handles Render cold-start ~30-60s wake-up)
+async function apiCall(method, path, body, retries = 4, delayMs = 4000) {
   const opts = {
     method,
     headers: { 'Content-Type': 'application/json' },
@@ -72,46 +73,100 @@ async function apiCall(method, path, body) {
   const tok = getToken();
   if (tok) opts.headers['Authorization'] = 'Bearer ' + tok;
   if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(API_BASE + path, opts);
-  const data = await res.json();
-  if (!res.ok) throw Object.assign(new Error(data.error || 'Request failed'), { status: res.status, data });
-  return data;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(API_BASE + path, opts);
+      const data = await res.json();
+      if (!res.ok) throw Object.assign(new Error(data.error || 'Request failed'), { status: res.status, data });
+      return data;
+    } catch(e) {
+      // Don't retry auth errors (401, 409 etc) or last attempt
+      if (e.status && e.status < 500) throw e;
+      if (attempt === retries) throw e;
+      // Show wake-up message on first retry
+      if (attempt === 0) showWakeUp(true);
+      await new Promise(r => setTimeout(r, delayMs));
+    }
+  }
 }
 
-// ===== SAVE — debounced cloud sync =====
+function showWakeUp(show) {
+  let el = document.getElementById('wakeup-banner');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'wakeup-banner';
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(90deg,#f472b6,#a78bfa);color:#fff;text-align:center;padding:10px 16px;font-size:13px;font-weight:600;letter-spacing:0.2px;box-shadow:0 2px 12px rgba(0,0,0,0.15)';
+    el.innerHTML = '🌸 Server is waking up, please wait a moment...';
+    document.body.appendChild(el);
+  }
+  el.style.display = show ? 'block' : 'none';
+}
+
+// ===== SAVE SYSTEM =====
+// Every save() call:
+// 1. Instantly writes to localStorage (never lost)
+// 2. Schedules a server sync after 1s of inactivity
+// 3. If server sync fails, retries every 5s until success
+
+let _pendingSave = false;
+
 function save() {
-  // Instant local cache
-  try { if(S.user) localStorage.setItem('gd_cache_' + S.user.uid, JSON.stringify(S)); } catch(e) {}
-  // Debounce server writes
+  // Always save to localStorage immediately — this is instant and never fails
+  try {
+    if (S.user) localStorage.setItem('gd_cache_' + S.user.uid, JSON.stringify(S));
+  } catch(e) {}
+  // Mark that we need to sync to server
+  _pendingSave = true;
+  // Debounce: wait 1s after last action before syncing
   clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(() => cloudSave(), 1500);
+  _saveTimer = setTimeout(() => doServerSync(), 1000);
 }
 
-async function cloudSave() {
+async function doServerSync() {
+  if (!_pendingSave) return;
   if (!getToken() || !S.user) return;
-  if (_saving) return;
+  if (_saving) return; // already syncing, will retry
   _saving = true;
   try {
-    // Remove circular/large non-essential fields before sending
     const payload = JSON.parse(JSON.stringify(S));
     await apiCall('PUT', '/data', payload);
+    _pendingSave = false; // success — clear pending flag
+    console.log('✅ Saved to server');
   } catch(e) {
-    console.warn('cloudSave error:', e.message);
-  } finally {
-    _saving = false;
+    console.warn('Save failed, will retry:', e.message);
+    // Retry in 5 seconds
+    setTimeout(() => doServerSync(), 5000);
   }
+  _saving = false;
+}
+
+// Sync every 30s as a safety net even if debounce misses something
+setInterval(() => { if (_pendingSave) doServerSync(); }, 30000);
+
+async function cloudSave() {
+  return doServerSync();
 }
 
 async function cloudLoad() {
   try {
     const { data } = await apiCall('GET', '/data');
+    const currentUser = S.user; // always preserve current user
     if (data && Object.keys(data).length > 0) {
       S = { ...DEF, ...data };
     }
+    // Always restore user from server response or keep current
+    if (!S.user && currentUser) S.user = currentUser;
     if (!S.deletedTasks) S.deletedTasks = {};
     if (!S.deletedHabits) S.deletedHabits = {};
-    // Cache locally
-    try { localStorage.setItem('gd_cache_' + S.user?.uid, JSON.stringify(S)); } catch(e) {}
+    if (!S.tasks) S.tasks = [];
+    if (!S.habits) S.habits = [];
+    if (!S.journals) S.journals = [];
+    if (!S.moods) S.moods = [];
+    if (!S.goals) S.goals = [];
+    // Update local cache
+    try { if(S.user) localStorage.setItem('gd_cache_' + S.user.uid, JSON.stringify(S)); } catch(e) {}
+    _pendingSave = false; // fresh from server — nothing pending
     return true;
   } catch(e) {
     console.warn('cloudLoad failed, using cache:', e.message);
@@ -139,58 +194,126 @@ function showErr(id, msg) {
   if (el) { el.textContent = msg; el.style.display = msg ? 'block' : 'none'; }
 }
 
+// ===== LOADING SCREEN =====
+function showLoadingScreen(msg) {
+  let el = document.getElementById('gd-loading');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'gd-loading';
+    el.style.cssText = 'position:fixed;inset:0;background:var(--bg,#fff0f8);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99998;gap:16px';
+    el.innerHTML = `
+      <div style="font-size:52px;animation:bou 1.5s infinite">🎀</div>
+      <div style="font-family:Georgia,serif;font-size:26px;font-weight:700;background:linear-gradient(135deg,#f472b6,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent">GlowUp Diary</div>
+      <div id="gd-loading-msg" style="font-size:13px;color:#a07090;margin-top:4px">Loading...</div>
+      <div style="width:120px;height:4px;background:#fce7f3;border-radius:4px;overflow:hidden;margin-top:8px">
+        <div style="height:100%;background:linear-gradient(90deg,#f472b6,#a78bfa);border-radius:4px;animation:loadbar 1.8s ease-in-out infinite"></div>
+      </div>`;
+    // inject keyframes once
+    if (!document.getElementById('gd-loading-style')) {
+      const s = document.createElement('style');
+      s.id = 'gd-loading-style';
+      s.textContent = '@keyframes loadbar{0%{width:0%;margin-left:0}50%{width:70%;margin-left:15%}100%{width:0%;margin-left:100%}}';
+      document.head.appendChild(s);
+    }
+    document.body.appendChild(el);
+  }
+  el.style.display = 'flex';
+  const m = document.getElementById('gd-loading-msg');
+  if (m) m.textContent = msg || 'Loading...';
+}
+
+function hideLoadingScreen() {
+  const el = document.getElementById('gd-loading');
+  if (el) el.style.display = 'none';
+  showWakeUp(false);
+}
+
+function ensureDefaults() {
+  if (!S.tasks.length) S.tasks = DEFAULT_TASKS.map(t => ({ ...t, completedDate: null }));
+  if (!S.habits.length) S.habits = [...DEFAULT_HABITS];
+  if (!S.deletedTasks) S.deletedTasks = {};
+  if (!S.deletedHabits) S.deletedHabits = {};
+}
+
+function refreshCurrentPage() {
+  const fns = { dashboard:renderDash, tasks:renderTasks, habit:renderHabit, weekly:renderWeekly,
+    streak:renderStreak, diet:renderDiet, mood:renderMood, journal:renderJournal,
+    goals:renderGoals, focus:renderFocus, settings:renderSettings };
+  try { if (fns[S.currentPage]) fns[S.currentPage](); } catch(e) {}
+}
+
 // ===== INIT =====
+// Force save when user closes/leaves the app
+window.addEventListener('beforeunload', () => {
+  if (!getToken() || !S.user) return;
+  clearTimeout(_saveTimer);
+  // Use sendBeacon for reliable save on page close
+  try {
+    const payload = JSON.stringify(S);
+    navigator.sendBeacon && navigator.sendBeacon(
+      API_BASE + '/data-beacon',
+      new Blob([payload], { type: 'application/json' })
+    );
+  } catch(e) {}
+});
+
 document.addEventListener('DOMContentLoaded', async function() {
   const token = getToken();
   if (!token) { showLogin(); return; }
 
-  // Try cache first for instant display
+  showLoadingScreen('Loading your diary ✨');
+
+  // Decode uid from token (no verification needed here — server verifies)
+  let cachedUid = null;
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
-    const uid = payload.uid;
-    const fromCache = loadFromCache(uid);
-    if (fromCache && S.user) {
-      if (!S.tasks.length) S.tasks = DEFAULT_TASKS.map(t => ({ ...t, completedDate: null }));
-      if (!S.habits.length) S.habits = [...DEFAULT_HABITS];
-      showApp();
-      // Sync from server in background
-      cloudLoad().then(() => {
-        if (!S.tasks.length) S.tasks = DEFAULT_TASKS.map(t => ({ ...t, completedDate: null }));
-        if (!S.habits.length) S.habits = [...DEFAULT_HABITS];
-        updateSidebarUser();
-        const fns = { dashboard:renderDash, tasks:renderTasks, habit:renderHabit, weekly:renderWeekly,
-          streak:renderStreak, diet:renderDiet, mood:renderMood, journal:renderJournal,
-          goals:renderGoals, focus:renderFocus, settings:renderSettings };
-        try { if (fns[S.currentPage]) fns[S.currentPage](); } catch(e) {}
-      });
-      return;
-    }
+    cachedUid = payload.uid;
   } catch(e) {}
 
-  // No cache — verify token with server and load data
+  // STEP 1: Show cached data instantly so screen is never blank
+  if (cachedUid && loadFromCache(cachedUid) && S.user) {
+    ensureDefaults();
+    hideLoadingScreen();
+    showApp();
+    // STEP 2: Sync from server in background (retries on wake-up)
+    cloudLoad().then(ok => {
+      if (ok) {
+        ensureDefaults();
+        updateSidebarUser();
+        refreshCurrentPage();
+      }
+    }).catch(() => {
+      toast('⚠️ Offline mode — data saved locally', '');
+    });
+    return;
+  }
+
+  // STEP 1b: No cache — must wait for server (first load on new device)
+  showLoadingScreen('🌸 Connecting to server...');
   try {
     const user = await apiCall('GET', '/me');
+    showLoadingScreen('Loading your data ✨');
     await cloudLoad();
     if (!S.user) S.user = { name: user.name, email: user.email, uid: user.uid, avatar: '🌸', joined: user.joined };
-    if (!S.tasks.length) S.tasks = DEFAULT_TASKS.map(t => ({ ...t, completedDate: null }));
-    if (!S.habits.length) S.habits = [...DEFAULT_HABITS];
+    ensureDefaults();
+    hideLoadingScreen();
     showApp();
   } catch(e) {
-    // Token invalid or server unreachable
-    if (e.status === 401) { setToken(null); showLogin(); }
-    else {
-      // Server unreachable — try cache anyway
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        if (loadFromCache(payload.uid) && S.user) {
-          if (!S.tasks.length) S.tasks = DEFAULT_TASKS.map(t => ({ ...t, completedDate: null }));
-          if (!S.habits.length) S.habits = [...DEFAULT_HABITS];
-          showApp();
-          toast('⚠️ Offline mode — changes will sync when reconnected', '');
-          return;
-        }
-      } catch(e2) {}
-      showLogin();
+    hideLoadingScreen();
+    if (e.status === 401) {
+      setToken(null); showLogin();
+    } else {
+      // Server completely unreachable even after retries
+      // If we have ANY cached data, show it
+      if (cachedUid && loadFromCache(cachedUid) && S.user) {
+        ensureDefaults();
+        showApp();
+        toast('⚠️ Could not reach server — showing cached data', '');
+      } else {
+        // Nothing we can do — show login with error
+        showLogin();
+        setTimeout(() => showErr('l-err', '⚠️ Server unreachable. Try again in a moment.'), 100);
+      }
     }
   }
 });
