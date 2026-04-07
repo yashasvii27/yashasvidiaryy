@@ -31,6 +31,7 @@ function sbRequest(method, endpoint, body, extraHeaders = {}) {
       'apikey': SUPABASE_KEY,
       'Authorization': 'Bearer ' + SUPABASE_KEY,
       'Content-Type': 'application/json',
+      'x-custom-timeout': '25000',
       ...extraHeaders,
     };
     if (bodyStr) headers['Content-Length'] = Buffer.byteLength(bodyStr);
@@ -40,6 +41,7 @@ function sbRequest(method, endpoint, body, extraHeaders = {}) {
       path: url.pathname + url.search,
       method,
       headers,
+      timeout: 20000, // 20 second timeout
     }, res => {
       let raw = '';
       res.on('data', c => raw += c);
@@ -55,6 +57,7 @@ function sbRequest(method, endpoint, body, extraHeaders = {}) {
         } catch(e) { reject(new Error('Parse error: ' + raw.slice(0,200))); }
       });
     });
+    req.on('timeout', () => { req.destroy(); reject(new Error('Request timeout')); });
     req.on('error', reject);
     if (bodyStr) req.write(bodyStr);
     req.end();
