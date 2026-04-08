@@ -14,7 +14,7 @@ const PORT         = process.env.PORT || 3001;
 const JWT_SECRET   = process.env.JWT_SECRET || 'glowup-change-me-' + crypto.randomBytes(8).toString('hex');
 // Hardcoded fallbacks so it works even if env vars have issues
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/$/, '') || 'https://gmsznzdsueubimcqtagk.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || 'sb_secret_sdyBRto53MIoqWSVrV5gmg_R5wJdn9e';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
 const TOKEN_TTL    = 720 * 3600; // 30 days
 
 console.log('Supabase URL:', SUPABASE_URL);
